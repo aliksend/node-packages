@@ -1,0 +1,35 @@
+{
+  "name": "@aliksend/fn",
+  "version": "1.0.0",
+  "description": "Functions with realtime type checking",
+  "keywords": [
+    "zod",
+    "runtime type check",
+    "validation",
+    "function"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aliksend/node-packages.git"
+  },
+  "license": "MIT",
+  "author": "Alik Send",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "prepublishOnly": "npm run build",
+    "test": "node --require ts-node/register --test ./src/*.test.ts",
+    "build": "rm -rf dist && tsc",
+    "lint": "npx @aliksend/linter --fix"
+  },
+  "dependencies": {
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
