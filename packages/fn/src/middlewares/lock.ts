@@ -9,7 +9,7 @@ export interface LockProvider {
   lock: ((req: any) => Promise<Lock>) & ((req: any, tryOnce: true) => Promise<Lock | undefined>)
 }
 
-type CheckFn<Req, Res> = (req: Req, wasLocked: boolean) => { value: Res } | Promise<true | { value: Res }>
+export type CheckFn<Req, Res> = (req: Req, wasLocked: boolean) => { value: Res } | Promise<true | { value: Res }>
 
 type FormatKeyFn<Req> = (req: Req) => unknown
 

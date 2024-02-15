@@ -82,7 +82,7 @@ interface Logger {
  */
 export class Context {
   /** Logger, that used to log into stdout */
-  static #logger: Logger
+  static #logger: Logger | undefined
   /** Async storage for current active context */
   static readonly #ls: AsyncLocalStorage<Context> = new AsyncLocalStorage()
   /** List of context trackers */
@@ -92,7 +92,7 @@ export class Context {
    * Initialize context.
    * Must be called before any interaction with Context
    */
-  static init (logger: Logger): void {
+  static setLogger (logger: Logger): void {
     this.#logger = logger
   }
 

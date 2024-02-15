@@ -14,23 +14,23 @@ export type MiddlewareAsyncIterable<Req, Res> = (req: Req, next: () => AsyncIter
 // TODO safeParse: true | false - use safeParse and return its result instead of throwing on error
 type FnResponseTypeSelector = 'promise' | 'asynciterable'
 
-// "public" interface
 type Arguments<Def extends Definition> = Def['request'] extends z.ZodTuple
   ? z.input<Def['request']>
   : [z.input<Def['request']>]
 
+// "public" interface
 type FnWithCallNotation<Def extends Definition, S extends FnResponseTypeSelector> =
   & Fn<Def, S>
   & (S extends 'asynciterable'
     ? (...req: Arguments<Def>) => AsyncIterable<z.output<Def['response']>>
     : (...req: Arguments<Def>) => Promise<z.output<Def['response']>>)
 
-// callback interface
 type CallbackReturnType<Def extends Definition, S extends FnResponseTypeSelector> =
   | z.input<Def['response']>
   | PromiseLike<z.input<Def['response']>>
   | (S extends 'asynciterable' ? AsyncIterable<z.input<Def['response']>> : never)
 
+// callback interface
 type Callback<Def extends Definition, S extends FnResponseTypeSelector> = (req: z.output<Def['request']>) => CallbackReturnType<Def, S>
 
 export class Fn<Def extends Definition, S extends FnResponseTypeSelector> extends Function {
@@ -50,17 +50,20 @@ export class Fn<Def extends Definition, S extends FnResponseTypeSelector> extend
 
   protected _callback: undefined | Callback<Def, S>
   readonly def: Def
-  readonly #responseType: S
+  protected readonly _responseType: S
   protected _processMiddlewares: (req: unknown, value: () => AsyncIterable<unknown>) => () => AsyncIterable<unknown>
 
-  private constructor (def: Def, responseType: S) {
+  protected constructor (def: Def, responseType: S) {
     super()
 
     this.def = def
-    this.#responseType = responseType
+    this._responseType = responseType
     this._processMiddlewares = (_req, value) => value
   }
 
+  /**
+   * Add promise middleware to call before _callback will be called
+   */
   usep (m: S extends 'promise' ? MiddlewarePromise<z.output<Def['request']>, z.input<Def['response']>> : never): this {
     const oldProcessMiddlewares = this._processMiddlewares
     this._processMiddlewares = (req, makeAsyncIterable) => oldProcessMiddlewares(req, () => {
@@ -71,7 +74,7 @@ export class Fn<Def extends Definition, S extends FnResponseTypeSelector> extend
   }
 
   /**
-   * Add promise middleware to call before _callback will be called
+   * Add AsyncIterable middleware to call before _callback will be called
    */
   use (m: MiddlewareAsyncIterable<z.output<Def['request']>, z.input<Def['response']>>): this {
     // We need to make chain of middlewares
@@ -108,7 +111,7 @@ export class Fn<Def extends Definition, S extends FnResponseTypeSelector> extend
 
     const res = this._processMiddlewares(req.data, () => this.#parseResponse(this.#process(req.data)))()
 
-    switch (this.#responseType) {
+    switch (this._responseType) {
       case 'asynciterable':
         return res
       case 'promise':

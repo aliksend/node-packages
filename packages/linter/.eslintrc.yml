@@ -1,0 +1,86 @@
+---
+extends: standard-with-typescript
+plugins:
+  - eslint-comments
+  - jsdoc
+  - unicorn
+  - ignore-generated
+parserOptions:
+  project: "./tsconfig.json"
+rules:
+  ## DISABLE SOME STANDARD RULES
+  # To be able to do
+  #     import { z } from 'zod'
+  #     const a = z.string()
+  #     type a = z.infer<typeof a>
+  "@typescript-eslint/no-redeclare": 'off'
+
+  ## ENABLE OTHER RULES
+  # eslint
+  no-console: error
+  multiline-comment-style: [error, separate-lines]
+  curly: [error, all]
+  no-implicit-coercion: [error]
+  no-process-env: [error]
+  function-call-argument-newline: [error, never]
+  one-var: [error, never]
+
+  # typescript
+  "@typescript-eslint/no-unused-vars": error
+  "@typescript-eslint/explicit-function-return-type": [error]
+  "@typescript-eslint/naming-convention":
+    [
+      error,
+      {
+        selector: "variableLike",
+        format: ["camelCase", "PascalCase", "UPPER_CASE"],
+        leadingUnderscore: "allow",
+        trailingUnderscore: "forbid",
+      },
+      {
+        selector: "memberLike",
+        modifiers: ["protected"],
+        format: ["camelCase"],
+        leadingUnderscore: "require",
+        trailingUnderscore: "forbid",
+      },
+      {
+        selector: "memberLike",
+        modifiers: ["private"],
+        format: ["camelCase"],
+        prefix: ["#"],
+        leadingUnderscore: "forbid",
+        trailingUnderscore: "forbid",
+      },
+    ]
+  "@typescript-eslint/brace-style": [error, 1tbs]
+  "@typescript-eslint/comma-dangle":
+    [error, { arrays: "always-multiline", objects: "always-multiline" }]
+
+  # jsdoc
+  jsdoc/check-alignment: error
+
+  # comments
+  eslint-comments/disable-enable-pair: [error, { allowWholeFile: true }]
+  eslint-comments/no-duplicate-disable: error
+  eslint-comments/no-unlimited-disable: error
+  eslint-comments/no-unused-disable: error
+  eslint-comments/no-unused-enable: error
+
+  # unicorn
+  "unicorn/catch-error-name": [error, { name: "err" }]
+
+  # n
+  "n/no-restricted-import":
+    [
+      error,
+      [{ name: env-var, message: Use config to depend on env var values }],
+    ]
+
+overrides:
+  - files:
+      - src/config/config.ts
+      - src/config.ts
+    rules:
+      # n
+      "n/no-restricted-import": [error, []]
