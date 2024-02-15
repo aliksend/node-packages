@@ -15,10 +15,10 @@
   "main": "dist/cli.mjs",
   "bin": "./dist/cli.mjs",
   "scripts": {
-    "start": "ts-node src/cli.mts",
     "build": "rm -rf dist && tsc",
     "lint": "npx @aliksend/linter --fix",
     "prepublishOnly": "npm run build",
+    "start": "ts-node src/cli.mts",
     "test": "node --require ts-node/register --test ./src/*.test.ts"
   },
   "dependencies": {

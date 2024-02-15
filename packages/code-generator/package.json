@@ -11,9 +11,9 @@
   },
   "license": "MIT",
   "author": "Alik Send",
-  "bin": "dist/cli.js",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": "./dist/cli.js",
   "scripts": {
     "build": "rm -rf dist && tsc",
     "lint": "npx @aliksend/linter --fix",

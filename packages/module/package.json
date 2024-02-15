@@ -14,10 +14,10 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "prepublishOnly": "npm run build",
-    "test": "node --require ts-node/register --test ./src/*.test.ts",
     "build": "rm -rf dist && tsc",
-    "lint": "npx @aliksend/linter --fix"
+    "lint": "npx @aliksend/linter --fix",
+    "prepublishOnly": "npm run build",
+    "test": "node --require ts-node/register --test ./src/*.test.ts"
   },
   "dependencies": {
     "@aliksend/utils": "^1.0.0",

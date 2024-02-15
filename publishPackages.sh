@@ -13,10 +13,20 @@ do
   PACKAGE_DIRNAME=$(dirname "$PACKAGE_JSON_PATH")
   echo "Processing package $PACKAGE_DIRNAME"
 
-  if [[ ! -e "$PACKAGE_DIRNAME/.skip-template" ]]; then
+  TEMPLATE="default"
+  if [[ -e "$PACKAGE_DIRNAME/.template" ]]; then
+    TEMPLATE=$(cat "$PACKAGE_DIRNAME/.template")
+  fi
+
+  if [[ ! -z "$TEMPLATE" ]]; then
     cp template/.gitignore template/.npmignore template/.npmrc template/tsconfig.json "$PACKAGE_DIRNAME/"
 
-    jq '. +
+    BIN="null"
+    if [[ "$TEMPLATE" == "binary" ]]; then
+      BIN='"./dist/cli.js"'
+    fi
+
+    jq --argjson bin $BIN '. +
       {
         license: "MIT",
         author: "Alik Send",
@@ -35,7 +45,8 @@ do
           "build": "rm -rf dist && tsc",
           "lint": "npx @aliksend/linter --fix"
         },
-      }
+      } +
+      if $bin then { bin: $bin } else {} end
     ' "$PACKAGE_DIRNAME/package.json" > p.json
     mv p.json "$PACKAGE_DIRNAME/package.json"
 
