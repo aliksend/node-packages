@@ -1,0 +1,77 @@
+openapi: 3.0.2
+info:
+  title: EXAMPLE
+  version: 0.0.0
+components:
+  schemas:
+    Date:
+      type: string
+      format: date
+paths:
+  '/types-conversion':
+    get:
+      parameters:
+      - name: number
+        in: query
+        schema:
+          type: number
+      - name: integer
+        in: query
+        schema:
+          type: integer
+      - name: boolean
+        in: query
+        schema:
+          type: boolean
+      - name: date-time
+        in: query
+        schema:
+          type: string
+          format: date-time
+      - name: date
+        in: query
+        schema:
+          type: string
+          format: date
+      - name: date-ref-in-request
+        in: query
+        schema:
+          $ref: '#/components/schemas/Date'
+      - name: array
+        in: query
+        # TODO style, explode -- https://swagger.io/docs/specification/serialization/
+        schema:
+          type: array
+          items:
+            type: string
+            enum: [a, b, c]
+      - name: object
+        in: query
+        # TODO style, explode -- https://swagger.io/docs/specification/serialization/
+        schema:
+          type: object
+          required: [n]
+          properties:
+            n:
+              type: number
+            s:
+              type: string
+            dt:
+              type: string
+              format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                  date-ref-in-response:
+                    $ref: '#/components/schemas/Date'
+                  date-time:
+                    type: string
+                    format: date-time

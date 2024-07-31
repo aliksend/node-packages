@@ -1,0 +1,109 @@
+openapi: 3.0.2
+info:
+  title: EXAMPLE
+  version: 0.0.0
+components:
+  securitySchemes:
+    bearerToken:
+      type: http
+      scheme: bearer
+      bearerFormat: uuid
+    cookie:
+      type: apiKey
+      in: cookie
+      name: token
+  schemas:
+    TestType:
+      type: object
+      required: [s, n, i]
+      properties:
+        s:
+          type: string
+        n:
+          type: number
+        i:
+          type: integer
+        optional_array:
+          type: array
+          items:
+            type: string
+        optional_complex:
+          allOf:
+          - type: object
+            properties:
+              first:
+                type: string
+              typeAndValue:
+                discriminator:
+                  propertyName: type
+                oneOf:
+                - type: object
+                  required: [type, value]
+                  properties:
+                    type:
+                      type: string
+                      enum: [string]
+                    value:
+                      type: string
+                - type: object
+                  required: [type, value]
+                  properties:
+                    type:
+                      type: string
+                      enum: [number, integer]
+                    value:
+                      type: number
+paths:
+  '/simple':
+    get:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestType'
+  '/headers':
+    get:
+      parameters:
+      - name: in-header
+        in: header
+        schema:
+          type: string
+      responses:
+        '204':
+          description: OK
+          headers:
+            out-header:
+              schema:
+                type: string
+  '/path-and-query-params/{id}':
+    get:
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: kind
+        in: query
+        schema:
+          type: string
+          enum: [full, partial, simple]
+      responses:
+        '204':
+          description: OK
