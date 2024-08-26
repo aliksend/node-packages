@@ -19,7 +19,7 @@ export async function generate (fullFilename: string, typesFormat: 'request' | '
   ])), f.createStringLiteral('stream'), undefined))
 
   function addSchemaDeclaration (name: string, schema: ts.Expression): void {
-    declarations.push(f.createVariableStatement([], f.createVariableDeclarationList([
+    declarations.push(f.createVariableStatement([f.createToken(ts.SyntaxKind.ExportKeyword)], f.createVariableDeclarationList([
       f.createVariableDeclaration(`${literalsPrefix}__${name}`, undefined, undefined, schema),
     ], ts.NodeFlags.Const)))
   }
@@ -43,21 +43,21 @@ export async function generate (fullFilename: string, typesFormat: 'request' | '
       switch (typesFormat) {
         case 'request':
         case 'handler': {
-          const { declaration } = makeDeclarationForModel(document.components.schemas[name], `${literalsPrefix}__`, '', typesFormat, document, `#/components/schemas/${name}`, 'unknown')
+          const declaration = makeDeclarationForModel(document.components.schemas[name], true, `${literalsPrefix}__`, '', typesFormat, false, document, `#/components/schemas/${name}`, 'unknown')
           addSchemaDeclaration(name, declaration)
           break
         }
         case 'client': {
-          const { declaration: stringifyDeclaration } = makeDeclarationForModel(document.components.schemas[name], `${literalsPrefix}__`, '__Req', 'stringify', document, `#/components/schemas/${name}`, 'unknown')
+          const stringifyDeclaration = makeDeclarationForModel(document.components.schemas[name], true, `${literalsPrefix}__`, '__Req', 'stringify', false, document, `#/components/schemas/${name}`, 'unknown')
           addSchemaDeclaration(name + '__Req', stringifyDeclaration)
-          const { declaration: parseDeclaration } = makeDeclarationForModel(document.components.schemas[name], `${literalsPrefix}__`, '__Res', 'parse', document, `#/components/schemas/${name}`, 'unknown')
+          const parseDeclaration = makeDeclarationForModel(document.components.schemas[name], true, `${literalsPrefix}__`, '__Res', 'parse', false, document, `#/components/schemas/${name}`, 'unknown')
           addSchemaDeclaration(name + '__Res', parseDeclaration)
           break
         }
-        case 'server':  {
-          const { declaration: parseDeclaration } = makeDeclarationForModel(document.components.schemas[name], `${literalsPrefix}__`, '__Req', 'parse', document, `#/components/schemas/${name}`, 'unknown')
+        case 'server': {
+          const parseDeclaration = makeDeclarationForModel(document.components.schemas[name], true, `${literalsPrefix}__`, '__Req', 'parse', false, document, `#/components/schemas/${name}`, 'unknown')
           addSchemaDeclaration(name + '__Req', parseDeclaration)
-          const { declaration: stringifyDeclaration } = makeDeclarationForModel(document.components.schemas[name], `${literalsPrefix}__`, '__Res', 'stringify', document, `#/components/schemas/${name}`, 'unknown')
+          const stringifyDeclaration = makeDeclarationForModel(document.components.schemas[name], true, `${literalsPrefix}__`, '__Res', 'stringify', false, document, `#/components/schemas/${name}`, 'unknown')
           addSchemaDeclaration(name + '__Res', stringifyDeclaration)
           break
         }
@@ -91,8 +91,7 @@ export async function generate (fullFilename: string, typesFormat: 'request' | '
     [f.createToken(ts.SyntaxKind.ExportKeyword)], f.createVariableDeclarationList(
       [
         f.createVariableDeclaration(f.createIdentifier('routes'), undefined, undefined, f.createObjectLiteralExpression(
-          Object.entries(routes).map(([operationId, declaration]) => f.createPropertyAssignment(f.createStringLiteral(operationId), declaration)),
-          true
+          Object.entries(routes).map(([operationId, declaration]) => f.createPropertyAssignment(f.createStringLiteral(operationId), declaration)), true
         )),
       ], ts.NodeFlags.Const
     )

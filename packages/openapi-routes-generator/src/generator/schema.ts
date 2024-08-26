@@ -2,21 +2,20 @@ import type { OpenAPIV3, OpenAPIV3_1 } from 'openapi-types'
 import ts, { factory as f } from 'typescript'
 import { resolveRef } from './ref'
 
-// Wrapper for makeDeclarationForModel to check required & default
-export function checkRequired (required: boolean, errorText: string, r: ReturnType<typeof makeDeclarationForModel>): ts.Expression {
+export function makeDeclarationForModel (schemaOrRef: OpenAPIV3.ReferenceObject | OpenAPIV3.SchemaObject | OpenAPIV3_1.SchemaObject, required: boolean, literalsPrefix: string, refSuffix: string, typesFormat: 'request' | 'handler' | 'parse' | 'stringify', convertType: 'from_string' | 'to_string' | false, parsedDocument: OpenAPIV3.Document | OpenAPIV3_1.Document, path: string, usedIn: 'request' | 'response' | 'unknown'): ts.Expression {
+  const { declaration, hasDefault } = doMakeDeclarationForModel(schemaOrRef, required, literalsPrefix, refSuffix, typesFormat, convertType, parsedDocument, path, usedIn)
   if (required) {
-    if (r.hasDefault) {
+    if (hasDefault) {
       // https://swagger.io/docs/specification/describing-parameters/#mistakes
-      throw new Error(errorText)
+      throw new Error(`must be either required (forced to be provided by user) or have default value at ${path}`)
     }
-  } else if (!r.hasDefault) {
-    return f.createCallExpression(f.createPropertyAccessExpression(r.declaration, 'optional'), undefined, [])
+  } else if (!hasDefault) {
+    return f.createCallExpression(f.createPropertyAccessExpression(declaration, 'optional'), undefined, [])
   }
-
-  return r.declaration
+  return declaration
 }
 
-export function makeDeclarationForModel (schemaOrRef: OpenAPIV3.ReferenceObject | OpenAPIV3.SchemaObject | OpenAPIV3_1.SchemaObject, literalsPrefix: string, refSuffix: string, typesFormat: 'request' | 'handler' | 'parse' | 'stringify', parsedDocument: OpenAPIV3.Document | OpenAPIV3_1.Document, path: string, usedIn: 'request' | 'response' | 'unknown'): { declaration: ts.Expression, hasDefault: boolean } {
+function doMakeDeclarationForModel (schemaOrRef: OpenAPIV3.ReferenceObject | OpenAPIV3.SchemaObject | OpenAPIV3_1.SchemaObject, required: boolean, literalsPrefix: string, refSuffix: string, typesFormat: 'request' | 'handler' | 'parse' | 'stringify', convertType: 'from_string' | 'to_string' | false, parsedDocument: OpenAPIV3.Document | OpenAPIV3_1.Document, path: string, usedIn: 'request' | 'response' | 'unknown'): { declaration: ts.Expression, hasDefault: boolean } {
   let hasDefault = false
 
   if ('$ref' in schemaOrRef) {
@@ -33,10 +32,10 @@ export function makeDeclarationForModel (schemaOrRef: OpenAPIV3.ReferenceObject 
   const schema = schemaOrRef
 
   if (schema.oneOf != null) {
-    const zodSchemas = schema.oneOf.map((v, index) => makeDeclarationForModel(v, literalsPrefix, refSuffix, typesFormat, parsedDocument, `${path}/oneOf/${index}`, usedIn))
+    const zodSchemas = schema.oneOf.map((v, index) => makeDeclarationForModel(v, true, literalsPrefix, refSuffix, typesFormat, convertType, parsedDocument, `${path}/oneOf/${index}`, usedIn))
     if (zodSchemas.length === 1) {
       return {
-        declaration: zodSchemas[0].declaration,
+        declaration: zodSchemas[0],
         hasDefault,
       }
     }
@@ -45,11 +44,11 @@ export function makeDeclarationForModel (schemaOrRef: OpenAPIV3.ReferenceObject 
     if (schema.discriminator?.propertyName != null) {
       declaration = f.createCallExpression(f.createPropertyAccessExpression(f.createIdentifier('z'), 'discriminatedUnion'), undefined, [
         f.createStringLiteral(schema.discriminator.propertyName),
-        f.createArrayLiteralExpression(zodSchemas.map(({ declaration }) => declaration)),
+        f.createArrayLiteralExpression(zodSchemas),
       ])
     } else {
       declaration = f.createCallExpression(f.createPropertyAccessExpression(f.createIdentifier('z'), 'union'), undefined, [
-        f.createArrayLiteralExpression(zodSchemas.map(({ declaration }) => declaration)),
+        f.createArrayLiteralExpression(zodSchemas),
       ])
     }
     return {
@@ -58,12 +57,12 @@ export function makeDeclarationForModel (schemaOrRef: OpenAPIV3.ReferenceObject 
     }
   }
   if (schema.anyOf != null) {
-    const zodSchemas = schema.anyOf.map((v, index) => makeDeclarationForModel(v, literalsPrefix, refSuffix, typesFormat, parsedDocument, `${path}/anyOf/${index}`, usedIn))
+    const zodSchemas = schema.anyOf.map((v, index) => makeDeclarationForModel(v, true, literalsPrefix, refSuffix, typesFormat, convertType, parsedDocument, `${path}/anyOf/${index}`, usedIn))
     const declaration = zodSchemas.reduce((res: ts.Expression | undefined, zodSchema) => {
       if (res == null) {
-        return zodSchema.declaration
+        return zodSchema
       }
-      return f.createCallExpression(f.createPropertyAccessExpression(res, 'or'), undefined, [zodSchema.declaration])
+      return f.createCallExpression(f.createPropertyAccessExpression(res, 'or'), undefined, [zodSchema])
     }, undefined)
     if (declaration == null) {
       throw new Error(`anyOf must contain at least one value at ${path}/anyOf`)
@@ -74,12 +73,12 @@ export function makeDeclarationForModel (schemaOrRef: OpenAPIV3.ReferenceObject 
     }
   }
   if (schema.allOf != null) {
-    const zodSchemas = schema.allOf.map((v, index) => makeDeclarationForModel(v, literalsPrefix, refSuffix, typesFormat, parsedDocument, `${path}/allOf/${index}`, usedIn))
+    const zodSchemas = schema.allOf.map((v, index) => makeDeclarationForModel(v, true, literalsPrefix, refSuffix, typesFormat, convertType, parsedDocument, `${path}/allOf/${index}`, usedIn))
     const declaration = zodSchemas.reduce((res: ts.Expression | undefined, zodSchema) => {
       if (res == null) {
-        return zodSchema.declaration
+        return zodSchema
       }
-      return f.createCallExpression(f.createPropertyAccessExpression(res, 'and'), undefined, [zodSchema.declaration])
+      return f.createCallExpression(f.createPropertyAccessExpression(res, 'and'), undefined, [zodSchema])
     }, undefined)
     if (declaration == null) {
       throw new Error(`allOf must contain at least one value at ${path}/allOf`)
@@ -106,7 +105,13 @@ export function makeDeclarationForModel (schemaOrRef: OpenAPIV3.ReferenceObject 
 
   switch (schema.type) {
     case 'null': {
-      const res = f.createCallExpression(f.createPropertyAccessExpression(f.createIdentifier('z'), 'null'), undefined, [])
+      let res = f.createCallExpression(f.createPropertyAccessExpression(f.createIdentifier('z'), 'null'), undefined, [])
+      if (schema.description != null) {
+        res = f.createCallExpression(f.createPropertyAccessExpression(res, 'describe'), undefined, [f.createStringLiteral(schema.description)])
+      }
+      if (convertType !== false) {
+        throw new Error(`converting type not supported for ${schema.type} at ${path}`)
+      }
       return {
         declaration: res,
         hasDefault,
@@ -120,6 +125,67 @@ export function makeDeclarationForModel (schemaOrRef: OpenAPIV3.ReferenceObject 
       }
       if ('nullable' in schema && schema.nullable === true) {
         res = f.createCallExpression(f.createPropertyAccessExpression(res, 'nullable'), undefined, [])
+      }
+      switch (convertType) {
+        case 'from_string': {
+          let stringWithTransform = f.createCallExpression(
+            f.createPropertyAccessExpression(
+              f.createCallExpression(
+                f.createPropertyAccessExpression(
+                  f.createIdentifier('z'), f.createIdentifier('enum')
+                ), undefined, [f.createArrayLiteralExpression(
+                  [
+                    f.createStringLiteral('true'),
+                    f.createStringLiteral('false'),
+                  ], false
+                )]
+              ), f.createIdentifier('transform')
+            ), undefined, [f.createArrowFunction(
+              undefined, undefined, [f.createParameterDeclaration(
+                undefined, undefined, f.createIdentifier('v'), undefined, undefined, undefined
+              )], undefined, f.createToken(ts.SyntaxKind.EqualsGreaterThanToken), f.createBinaryExpression(
+                f.createIdentifier('v'), f.createToken(ts.SyntaxKind.EqualsEqualsEqualsToken), f.createStringLiteral('true')
+              )
+            )]
+          )
+
+          if ('nullable' in schema && schema.nullable === true) {
+            stringWithTransform = f.createCallExpression(f.createPropertyAccessExpression(stringWithTransform, 'nullable'), undefined, [])
+          }
+          if (schema.default != null || !required) {
+            stringWithTransform = f.createCallExpression(f.createPropertyAccessExpression(stringWithTransform, 'optional'), undefined, [])
+          }
+
+          res = f.createCallExpression(
+            f.createPropertyAccessExpression(
+              stringWithTransform, f.createIdentifier('pipe')
+            ), undefined, [res]
+          )
+          break
+        }
+        case 'to_string': {
+          res = f.createCallExpression(
+            f.createPropertyAccessExpression(
+              res, f.createIdentifier('transform')
+            ), undefined, [f.createArrowFunction(
+              undefined, undefined, [f.createParameterDeclaration(
+                undefined, undefined, f.createIdentifier('v'), undefined, undefined, undefined
+              )], undefined, f.createToken(ts.SyntaxKind.EqualsGreaterThanToken), f.createTemplateExpression(
+                f.createTemplateHead(
+                  '', ''
+                ), [f.createTemplateSpan(
+                  f.createIdentifier('v'), f.createTemplateTail(
+                    '', ''
+                  )
+                )]
+              )
+            )]
+          )
+          break
+        }
+      }
+      if (schema.description != null) {
+        res = f.createCallExpression(f.createPropertyAccessExpression(res, 'describe'), undefined, [f.createStringLiteral(schema.description)])
       }
       return {
         declaration: res,
@@ -147,78 +213,44 @@ export function makeDeclarationForModel (schemaOrRef: OpenAPIV3.ReferenceObject 
                 break
               case 'request':
                 res = f.createCallExpression(f.createPropertyAccessExpression(
-                  f.createCallExpression(f.createPropertyAccessExpression(f.createIdentifier('z'), 'string'), undefined, []), 'regex'),
-                  undefined,
-                  [
-                    f.createRegularExpressionLiteral("/^\\d{4}-\\d{2}-\\d{2}$/")
-                  ]
+                  f.createCallExpression(f.createPropertyAccessExpression(f.createIdentifier('z'), 'string'), undefined, []), 'regex'), undefined, [
+                  f.createRegularExpressionLiteral('/^\\d{4}-\\d{2}-\\d{2}$/'),
+                ]
                 )
                 break
               case 'stringify':
                 res = f.createCallExpression(f.createPropertyAccessExpression(
-                  f.createCallExpression(f.createPropertyAccessExpression(f.createIdentifier('z'), 'date'), undefined, []), 'transform'),
-                  undefined,
-                  [
-                    f.createArrowFunction(
-                      undefined,
-                      undefined,
-                      [f.createParameterDeclaration(
-                        undefined,
-                        undefined,
-                        f.createIdentifier("v"),
-                        undefined,
-                        undefined,
-                        undefined
-                      )],
-                      undefined,
-                      f.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-                      f.createCallExpression(
-                        f.createPropertyAccessExpression(
-                          f.createCallExpression(
-                            f.createPropertyAccessExpression(
-                              f.createIdentifier("v"),
-                              f.createIdentifier("toISOString")
-                            ),
-                            undefined,
-                            []
-                          ),
-                          f.createIdentifier("slice")
-                        ),
-                        undefined,
-                        [
-                          f.createNumericLiteral("0"),
-                          f.createNumericLiteral("10")
-                        ]
-                      )
+                  f.createCallExpression(f.createPropertyAccessExpression(f.createIdentifier('z'), 'date'), undefined, []), 'transform'), undefined, [
+                  f.createArrowFunction(
+                    undefined, undefined, [f.createParameterDeclaration(
+                      undefined, undefined, f.createIdentifier('v'), undefined, undefined, undefined
+                    )], undefined, f.createToken(ts.SyntaxKind.EqualsGreaterThanToken), f.createCallExpression(
+                      f.createPropertyAccessExpression(
+                        f.createCallExpression(
+                          f.createPropertyAccessExpression(
+                            f.createIdentifier('v'), f.createIdentifier('toISOString')
+                          ), undefined, []
+                        ), f.createIdentifier('slice')
+                      ), undefined, [
+                        f.createNumericLiteral('0'),
+                        f.createNumericLiteral('10'),
+                      ]
                     )
-                  ]
+                  ),
+                ]
                 )
                 break
               case 'parse':
                 res = f.createCallExpression(f.createPropertyAccessExpression(
-                  f.createCallExpression(f.createPropertyAccessExpression(f.createIdentifier('z'), 'string'), undefined, []), 'transform'),
-                  undefined,
-                  [
-                    f.createArrowFunction(
-                      undefined,
-                      undefined,
-                      [f.createParameterDeclaration(
-                        undefined,
-                        undefined,
-                        f.createIdentifier("v"),
-                        undefined,
-                        undefined,
-                        undefined
-                      )],
-                      undefined,
-                      f.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-                      f.createNewExpression(
-                        f.createIdentifier("Date"),
-                        undefined,
-                        [f.createIdentifier("v")]
-                      )
+                  f.createCallExpression(f.createPropertyAccessExpression(f.createIdentifier('z'), 'string'), undefined, []), 'transform'), undefined, [
+                  f.createArrowFunction(
+                    undefined, undefined, [f.createParameterDeclaration(
+                      undefined, undefined, f.createIdentifier('v'), undefined, undefined, undefined
+                    )], undefined, f.createToken(ts.SyntaxKind.EqualsGreaterThanToken), f.createNewExpression(
+                      f.createIdentifier('Date'), undefined, [f.createIdentifier('v')]
                     )
-                  ]
+                  ),
+                ]
                 )
                 break
             }
@@ -230,68 +262,37 @@ export function makeDeclarationForModel (schemaOrRef: OpenAPIV3.ReferenceObject 
                 break
               case 'request':
                 res = f.createCallExpression(f.createPropertyAccessExpression(
-                  f.createCallExpression(f.createPropertyAccessExpression(f.createIdentifier('z'), 'string'), undefined, []), 'regex'),
-                  undefined,
-                  [
-                    f.createRegularExpressionLiteral("/^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d(\\.\\d+)?(([+-]\\d\\d:\\d\\d)|Z)$/")
-                  ]
+                  f.createCallExpression(f.createPropertyAccessExpression(f.createIdentifier('z'), 'string'), undefined, []), 'regex'), undefined, [
+                  f.createRegularExpressionLiteral('/^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d(\\.\\d+)?(([+-]\\d\\d:\\d\\d)|Z)$/'),
+                ]
                 )
                 break
               case 'stringify':
                 res = f.createCallExpression(f.createPropertyAccessExpression(
-                  f.createCallExpression(f.createPropertyAccessExpression(f.createIdentifier('z'), 'date'), undefined, []), 'transform'),
-                  undefined,
-                  [
-                    f.createArrowFunction(
-                      undefined,
-                      undefined,
-                      [f.createParameterDeclaration(
-                        undefined,
-                        undefined,
-                        f.createIdentifier("v"),
-                        undefined,
-                        undefined,
-                        undefined
-                      )],
-                      undefined,
-                      f.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-                      f.createCallExpression(
-                        f.createPropertyAccessExpression(
-                          f.createIdentifier("v"),
-                          f.createIdentifier("toISOString")
-                        ),
-                        undefined,
-                        []
-                      )
+                  f.createCallExpression(f.createPropertyAccessExpression(f.createIdentifier('z'), 'date'), undefined, []), 'transform'), undefined, [
+                  f.createArrowFunction(
+                    undefined, undefined, [f.createParameterDeclaration(
+                      undefined, undefined, f.createIdentifier('v'), undefined, undefined, undefined
+                    )], undefined, f.createToken(ts.SyntaxKind.EqualsGreaterThanToken), f.createCallExpression(
+                      f.createPropertyAccessExpression(
+                        f.createIdentifier('v'), f.createIdentifier('toISOString')
+                      ), undefined, []
                     )
-                  ]
+                  ),
+                ]
                 )
                 break
               case 'parse':
                 res = f.createCallExpression(f.createPropertyAccessExpression(
-                  f.createCallExpression(f.createPropertyAccessExpression(f.createIdentifier('z'), 'string'), undefined, []), 'transform'),
-                  undefined,
-                  [
-                    f.createArrowFunction(
-                      undefined,
-                      undefined,
-                      [f.createParameterDeclaration(
-                        undefined,
-                        undefined,
-                        f.createIdentifier("v"),
-                        undefined,
-                        undefined,
-                        undefined
-                      )],
-                      undefined,
-                      f.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-                      f.createNewExpression(
-                        f.createIdentifier("Date"),
-                        undefined,
-                        [f.createIdentifier("v")]
-                      )
+                  f.createCallExpression(f.createPropertyAccessExpression(f.createIdentifier('z'), 'string'), undefined, []), 'transform'), undefined, [
+                  f.createArrowFunction(
+                    undefined, undefined, [f.createParameterDeclaration(
+                      undefined, undefined, f.createIdentifier('v'), undefined, undefined, undefined
+                    )], undefined, f.createToken(ts.SyntaxKind.EqualsGreaterThanToken), f.createNewExpression(
+                      f.createIdentifier('Date'), undefined, [f.createIdentifier('v')]
                     )
-                  ]
+                  ),
+                ]
                 )
                 break
             }
@@ -344,6 +345,9 @@ export function makeDeclarationForModel (schemaOrRef: OpenAPIV3.ReferenceObject 
       if ('nullable' in schema && schema.nullable === true) {
         res = f.createCallExpression(f.createPropertyAccessExpression(res, 'nullable'), undefined, [])
       }
+      if (schema.description != null) {
+        res = f.createCallExpression(f.createPropertyAccessExpression(res, 'describe'), undefined, [f.createStringLiteral(schema.description)])
+      }
       return {
         declaration: res,
         hasDefault,
@@ -363,6 +367,62 @@ export function makeDeclarationForModel (schemaOrRef: OpenAPIV3.ReferenceObject 
       }
       if ('nullable' in schema && schema.nullable === true) {
         res = f.createCallExpression(f.createPropertyAccessExpression(res, 'nullable'), undefined, [])
+      }
+      switch (convertType) {
+        case 'from_string': {
+          let stringWithTransform = f.createCallExpression(
+            f.createPropertyAccessExpression(
+              f.createCallExpression(
+                f.createPropertyAccessExpression(
+                  f.createIdentifier('z'), f.createIdentifier('string')
+                ), undefined, []
+              ), f.createIdentifier('transform')
+            ), undefined, [f.createArrowFunction(
+              undefined, undefined, [f.createParameterDeclaration(
+                undefined, undefined, f.createIdentifier('v'), undefined, undefined, undefined
+              )], undefined, f.createToken(ts.SyntaxKind.EqualsGreaterThanToken), f.createCallExpression(
+                f.createIdentifier('parseFloat'), undefined, [f.createIdentifier('v')]
+              )
+            )]
+          )
+
+          if ('nullable' in schema && schema.nullable === true) {
+            stringWithTransform = f.createCallExpression(f.createPropertyAccessExpression(stringWithTransform, 'nullable'), undefined, [])
+          }
+          if (schema.default != null || !required) {
+            stringWithTransform = f.createCallExpression(f.createPropertyAccessExpression(stringWithTransform, 'optional'), undefined, [])
+          }
+
+          res = f.createCallExpression(
+            f.createPropertyAccessExpression(
+              stringWithTransform, f.createIdentifier('pipe')
+            ), undefined, [res]
+          )
+          break
+        }
+        case 'to_string': {
+          res = f.createCallExpression(
+            f.createPropertyAccessExpression(
+              res, f.createIdentifier('transform')
+            ), undefined, [f.createArrowFunction(
+              undefined, undefined, [f.createParameterDeclaration(
+                undefined, undefined, f.createIdentifier('v'), undefined, undefined, undefined
+              )], undefined, f.createToken(ts.SyntaxKind.EqualsGreaterThanToken), f.createTemplateExpression(
+                f.createTemplateHead(
+                  '', ''
+                ), [f.createTemplateSpan(
+                  f.createIdentifier('v'), f.createTemplateTail(
+                    '', ''
+                  )
+                )]
+              )
+            )]
+          )
+          break
+        }
+      }
+      if (schema.description != null) {
+        res = f.createCallExpression(f.createPropertyAccessExpression(res, 'describe'), undefined, [f.createStringLiteral(schema.description)])
       }
       return {
         declaration: res,
@@ -384,14 +444,70 @@ export function makeDeclarationForModel (schemaOrRef: OpenAPIV3.ReferenceObject 
       if ('nullable' in schema && schema.nullable === true) {
         res = f.createCallExpression(f.createPropertyAccessExpression(res, 'nullable'), undefined, [])
       }
+      switch (convertType) {
+        case 'from_string': {
+          let stringWithTransform = f.createCallExpression(
+            f.createPropertyAccessExpression(
+              f.createCallExpression(
+                f.createPropertyAccessExpression(
+                  f.createIdentifier('z'), f.createIdentifier('string')
+                ), undefined, []
+              ), f.createIdentifier('transform')
+            ), undefined, [f.createArrowFunction(
+              undefined, undefined, [f.createParameterDeclaration(
+                undefined, undefined, f.createIdentifier('v'), undefined, undefined, undefined
+              )], undefined, f.createToken(ts.SyntaxKind.EqualsGreaterThanToken), f.createCallExpression(
+                f.createIdentifier('parseInt'), undefined, [f.createIdentifier('v')]
+              )
+            )]
+          )
+
+          if ('nullable' in schema && schema.nullable === true) {
+            stringWithTransform = f.createCallExpression(f.createPropertyAccessExpression(stringWithTransform, 'nullable'), undefined, [])
+          }
+          if (schema.default != null || !required) {
+            stringWithTransform = f.createCallExpression(f.createPropertyAccessExpression(stringWithTransform, 'optional'), undefined, [])
+          }
+
+          res = f.createCallExpression(
+            f.createPropertyAccessExpression(
+              stringWithTransform, f.createIdentifier('pipe')
+            ), undefined, [res]
+          )
+          break
+        }
+        case 'to_string': {
+          res = f.createCallExpression(
+            f.createPropertyAccessExpression(
+              res, f.createIdentifier('transform')
+            ), undefined, [f.createArrowFunction(
+              undefined, undefined, [f.createParameterDeclaration(
+                undefined, undefined, f.createIdentifier('v'), undefined, undefined, undefined
+              )], undefined, f.createToken(ts.SyntaxKind.EqualsGreaterThanToken), f.createTemplateExpression(
+                f.createTemplateHead(
+                  '', ''
+                ), [f.createTemplateSpan(
+                  f.createIdentifier('v'), f.createTemplateTail(
+                    '', ''
+                  )
+                )]
+              )
+            )]
+          )
+          break
+        }
+      }
+      if (schema.description != null) {
+        res = f.createCallExpression(f.createPropertyAccessExpression(res, 'describe'), undefined, [f.createStringLiteral(schema.description)])
+      }
       return {
         declaration: res,
         hasDefault,
       }
     }
     case 'array': {
-      const arrayItemSchema = makeDeclarationForModel(schema.items, literalsPrefix, refSuffix, typesFormat, parsedDocument, `${path}/items`, usedIn)
-      let res = f.createCallExpression(f.createPropertyAccessExpression(arrayItemSchema.declaration, 'array'), undefined, [])
+      const arrayItemSchema = makeDeclarationForModel(schema.items, true, literalsPrefix, refSuffix, typesFormat, convertType, parsedDocument, `${path}/items`, usedIn)
+      let res = f.createCallExpression(f.createPropertyAccessExpression(arrayItemSchema, 'array'), undefined, [])
       if (schema.default != null) {
         if (!Array.isArray(schema.default)) {
           throw new Error(`default value for array must be array at ${path}/default`)
@@ -401,6 +517,12 @@ export function makeDeclarationForModel (schemaOrRef: OpenAPIV3.ReferenceObject 
       }
       if ('nullable' in schema && schema.nullable === true) {
         res = f.createCallExpression(f.createPropertyAccessExpression(res, 'nullable'), undefined, [])
+      }
+      if (schema.description != null) {
+        res = f.createCallExpression(f.createPropertyAccessExpression(res, 'describe'), undefined, [f.createStringLiteral(schema.description)])
+      }
+      if (convertType !== false) {
+        throw new Error(`converting type not supported for ${schema.type} at ${path}`)
       }
       return {
         declaration: res,
@@ -413,13 +535,14 @@ export function makeDeclarationForModel (schemaOrRef: OpenAPIV3.ReferenceObject 
         properties = []
       } else {
         properties = Object.entries(schema.properties).map(([name, property]) => {
-          const declaration = checkRequired(schema.required != null && schema.required.includes(name), `field must be either required (forced to be provided by user) or have default value at ${path}/properties/${name}`, makeDeclarationForModel(property, literalsPrefix, refSuffix, typesFormat, parsedDocument, `${path}/properties/${name}`, usedIn))
+          const required = schema.required != null && schema.required.includes(name)
+          const declaration = makeDeclarationForModel(property, required, literalsPrefix, refSuffix, typesFormat, convertType, parsedDocument, `${path}/properties/${name}`, usedIn)
           return f.createPropertyAssignment(f.createStringLiteral(name), declaration)
         })
       }
       if (schema.required != null) {
         for (const field of schema.required) {
-          if (schema.properties == null || schema.properties[field] == null) {
+          if (schema.properties?.[field] == null) {
             throw new Error(`field ${field} is declared as required, but not listed in properties at ${path}`)
           }
         }
@@ -440,11 +563,11 @@ export function makeDeclarationForModel (schemaOrRef: OpenAPIV3.ReferenceObject 
           passthrough = false
 
           const additionalPropertiesSchema = resolveRef(schema.additionalProperties, parsedDocument, `${path}/additionalProperties`)
-          const el = makeDeclarationForModel(additionalPropertiesSchema, literalsPrefix, refSuffix, typesFormat, parsedDocument, `${path}/additionalProperties`, usedIn)
+          const declaration = makeDeclarationForModel(additionalPropertiesSchema, true, literalsPrefix, refSuffix, typesFormat, convertType, parsedDocument, `${path}/additionalProperties`, usedIn)
 
           res = f.createCallExpression(f.createPropertyAccessExpression(res, 'and'), undefined, [
             f.createCallExpression(f.createPropertyAccessExpression(f.createIdentifier('z'), 'record'), undefined, [
-              el.declaration,
+              declaration,
             ]),
           ])
         }
@@ -464,6 +587,13 @@ export function makeDeclarationForModel (schemaOrRef: OpenAPIV3.ReferenceObject 
 
       if ('nullable' in schema && schema.nullable === true) {
         res = f.createCallExpression(f.createPropertyAccessExpression(res, 'nullable'), undefined, [])
+      }
+      if (schema.description != null) {
+        res = f.createCallExpression(f.createPropertyAccessExpression(res, 'describe'), undefined, [f.createStringLiteral(schema.description)])
+      }
+
+      if (convertType !== false) {
+        throw new Error(`converting type not supported for ${schema.type} at ${path}`)
       }
 
       return {

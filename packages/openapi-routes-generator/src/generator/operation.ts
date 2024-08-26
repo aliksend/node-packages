@@ -2,7 +2,7 @@ import type { OpenAPIV3, OpenAPIV3_1 } from 'openapi-types'
 import type ts from 'typescript'
 import { factory as f } from 'typescript'
 import { resolveRef } from './ref'
-import { checkRequired, makeDeclarationForModel } from './schema'
+import { makeDeclarationForModel } from './schema'
 
 function makeRequestDeclarationForOperation (o: OpenAPIV3.OperationObject | OpenAPIV3_1.OperationObject, typesFormat: 'request' | 'handler' | 'server' | 'client', literalsPrefix: string, parsedDocument: OpenAPIV3.Document | OpenAPIV3_1.Document, path: string): { declaration: ts.Expression, security: undefined | ts.Expression } {
   let modelTypesFormat: 'request' | 'handler' | 'parse' | 'stringify'
@@ -34,17 +34,17 @@ function makeRequestDeclarationForOperation (o: OpenAPIV3.OperationObject | Open
       }
       switch (param.in) {
         case 'path': {
-          const declaration = checkRequired(param.required === true, `path parameter ${param.name} must be either required (forced to be provided by user) or have default value at ${path}/parameters/${index}`, makeDeclarationForModel(param.schema, literalsPrefix, refSuffix, modelTypesFormat, parsedDocument, `${path}/parameters/${index}/schema`, 'request'))
+          const declaration = makeDeclarationForModel(param.schema, param.required === true, literalsPrefix, refSuffix, modelTypesFormat, 'from_string', parsedDocument, `${path}/parameters/${index}/schema`, 'request')
           requestPathElements.push(f.createPropertyAssignment(f.createStringLiteral(param.name), declaration))
           break
         }
         case 'query': {
-          const declaration = checkRequired(param.required === true, `query parameter ${param.name} must be either required (forced to be provided by user) or have default value at ${path}/parameters/${index}`, makeDeclarationForModel(param.schema, literalsPrefix, refSuffix, modelTypesFormat, parsedDocument, `${path}/parameters/${index}/schema`, 'request'))
+          const declaration = makeDeclarationForModel(param.schema, param.required === true, literalsPrefix, refSuffix, modelTypesFormat, 'from_string', parsedDocument, `${path}/parameters/${index}/schema`, 'request')
           requestQueryElements.push(f.createPropertyAssignment(f.createStringLiteral(param.name), declaration))
           break
         }
         case 'header': {
-          const declaration = checkRequired(param.required === true, `header parameter ${param.name} must be either required (forced to be provided by user) or have default value at ${path}/parameters/${index}`, makeDeclarationForModel(param.schema, literalsPrefix, refSuffix, modelTypesFormat, parsedDocument, `${path}/parameters/${index}/schema`, 'request'))
+          const declaration = makeDeclarationForModel(param.schema, param.required === true, literalsPrefix, refSuffix, modelTypesFormat, 'from_string', parsedDocument, `${path}/parameters/${index}/schema`, 'request')
           requestHeadersElements.push(f.createPropertyAssignment(f.createStringLiteral(param.name), declaration))
           break
         }
@@ -82,10 +82,10 @@ function makeRequestDeclarationForOperation (o: OpenAPIV3.OperationObject | Open
         if (requestBodyContent.schema == null) {
           throw new Error(`requestBody schema must be defined for ${contentType} at ${path}/requestBody/${contentType}/schema`)
         }
-        const el = makeDeclarationForModel(requestBodyContent.schema, literalsPrefix, refSuffix, modelTypesFormat, parsedDocument, `${path}requestBody/${contentType}/schema`, 'request')
+        const declaration = makeDeclarationForModel(requestBodyContent.schema, true, literalsPrefix, refSuffix, modelTypesFormat, false, parsedDocument, `${path}requestBody/${contentType}/schema`, 'request')
 
         const elements = [
-          f.createPropertyAssignment('body', el.declaration),
+          f.createPropertyAssignment('body', declaration),
         ]
         if (contentType !== 'application/json') {
           elements.push(f.createPropertyAssignment('headers', f.createCallExpression(f.createPropertyAccessExpression(f.createIdentifier('z'), 'object'), undefined, [
@@ -175,12 +175,8 @@ function makeResponseDeclarationForOperation (o: OpenAPIV3.OperationObject | Ope
             if (response.headers[header].schema == null) {
               throw new Error(`schema must be set for header ${header} in ${statusCode} response for status code ${statusCode} at ${path}/responses/${statusCode}/headers/${header}/schema`)
             }
-            const schema = makeDeclarationForModel(response.headers[header].schema, literalsPrefix, refSuffix, modelTypesFormat, parsedDocument, `${path}/responses/${statusCode}/headers/${header}/schema`, 'response')
+            const declaration = makeDeclarationForModel(response.headers[header].schema, response.headers[header].required === true, literalsPrefix, refSuffix, modelTypesFormat, 'to_string', parsedDocument, `${path}/responses/${statusCode}/headers/${header}/schema`, 'response')
 
-            let declaration = schema.declaration
-            if (response.headers[header].required !== true) {
-              declaration = f.createCallExpression(f.createPropertyAccessExpression(declaration, 'optional'), undefined, [])
-            }
             return f.createPropertyAssignment(f.createStringLiteral(header), declaration)
           })
       }
@@ -203,10 +199,10 @@ function makeResponseDeclarationForOperation (o: OpenAPIV3.OperationObject | Ope
               headers.push(f.createPropertyAssignment(f.createStringLiteral('content-type'), f.createCallExpression(f.createPropertyAccessExpression(f.createIdentifier('z'), 'literal'), undefined, [f.createStringLiteral(responseType)])))
             }
 
-            const schema = makeDeclarationForModel(response.content[responseType].schema, literalsPrefix, refSuffix, modelTypesFormat, parsedDocument, `${path}/responses/${statusCode}/content/${responseType}/schema`, 'response')
+            const declaration = makeDeclarationForModel(response.content[responseType].schema, true, literalsPrefix, refSuffix, modelTypesFormat, false, parsedDocument, `${path}/responses/${statusCode}/content/${responseType}/schema`, 'response')
 
             return {
-              payloadSchema: schema.declaration,
+              payloadSchema: declaration,
               headers: headers.length !== 0 ? headers : undefined,
             }
           })
