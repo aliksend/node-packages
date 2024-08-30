@@ -86,7 +86,7 @@ describe('Fn', () => {
         const values = req.split(' ')
         return {
           [Symbol.asyncIterator]: () => ({
-            async next () {
+            async next() {
               if (values.length === 0) {
                 return {
                   done: true,
@@ -157,7 +157,7 @@ describe('Fn', () => {
       const fn = Fn.build({
         request: z.string(),
         response: z.number().int(),
-      }).use(async function * (req, next) {
+      }).use(async function* (req, next) {
         callOrder.push('middleware 1')
         for await (const v of next()) {
           yield v
@@ -178,6 +178,28 @@ describe('Fn', () => {
       assert.deepStrictEqual(res, 246)
       assert.deepStrictEqual(callOrder, ['middleware 1', 'middleware 2', 'callback', 'end of middleware 2', 'end of middleware 1'])
     })
+  })
+
+  it('should parse request for callback, but not for middleware', async () => {
+    let middlewareCalledWith: any
+
+    const fn = Fn.build({
+      request: z.object({
+        foo: z.string()
+      }),
+      response: z.any()
+    }).usep(async (req, next) => {
+      middlewareCalledWith = req
+      return next()
+    }).init((req) => {
+      return req
+    })
+
+    const res = await fn({ foo: 'bar', bar: 'foo' } as any)
+
+    assert.deepStrictEqual(res, { foo: 'bar' })
+    assert.deepStrictEqual(middlewareCalledWith, { foo: 'bar', bar: 'foo' })
+
   })
 })
 

@@ -104,12 +104,14 @@ export class Fn<Def extends Definition, S extends FnResponseTypeSelector> extend
       rawReq = rawReq[0]
     }
 
-    const req = this.def.request.safeParse(rawReq)
-    if (!req.success) {
-      throw new BadRequestError(req.error)
-    }
+    const res = this._processMiddlewares(rawReq, () => {
+      const req = this.def.request.safeParse(rawReq)
+      if (!req.success) {
+        throw new BadRequestError(req.error)
+      }
 
-    const res = this._processMiddlewares(req.data, () => this.#parseResponse(this.#process(req.data)))()
+      return this.#parseResponse(this.#process(req.data))
+    })()
 
     switch (this._responseType) {
       case 'asynciterable':
