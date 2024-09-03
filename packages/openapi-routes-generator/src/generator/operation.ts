@@ -4,7 +4,7 @@ import { factory as f } from 'typescript'
 import { resolveRef } from './ref'
 import { makeDeclarationForModel } from './schema'
 
-function makeRequestDeclarationForOperation (o: OpenAPIV3.OperationObject | OpenAPIV3_1.OperationObject, typesFormat: 'request' | 'handler' | 'server' | 'client', literalsPrefix: string, parsedDocument: OpenAPIV3.Document | OpenAPIV3_1.Document, path: string): { declaration: ts.Expression, security: undefined | ts.Expression } {
+function makeRequestDeclarationForOperation(o: OpenAPIV3.OperationObject | OpenAPIV3_1.OperationObject, typesFormat: 'request' | 'handler' | 'server' | 'client', literalsPrefix: string, parsedDocument: OpenAPIV3.Document | OpenAPIV3_1.Document, path: string): { declaration: ts.Expression, security: undefined | ts.Expression } {
   let modelTypesFormat: 'request' | 'handler' | 'parse' | 'stringify'
   let refSuffix = ''
   switch (typesFormat) {
@@ -45,7 +45,7 @@ function makeRequestDeclarationForOperation (o: OpenAPIV3.OperationObject | Open
         }
         case 'header': {
           const declaration = makeDeclarationForModel(param.schema, param.required === true, literalsPrefix, refSuffix, modelTypesFormat, 'from_string', parsedDocument, `${path}/parameters/${index}/schema`, 'request')
-          requestHeadersElements.push(f.createPropertyAssignment(f.createStringLiteral(param.name), declaration))
+          requestHeadersElements.push(f.createPropertyAssignment(f.createStringLiteral(param.name.toLowerCase()), declaration))
           break
         }
         default:
@@ -144,7 +144,7 @@ function makeRequestDeclarationForOperation (o: OpenAPIV3.OperationObject | Open
   }
 }
 
-function makeResponseDeclarationForOperation (o: OpenAPIV3.OperationObject | OpenAPIV3_1.OperationObject, typesFormat: 'request' | 'handler' | 'server' | 'client', literalsPrefix: string, parsedDocument: OpenAPIV3.Document | OpenAPIV3_1.Document, path: string): { declaration: ts.Expression } {
+function makeResponseDeclarationForOperation(o: OpenAPIV3.OperationObject | OpenAPIV3_1.OperationObject, typesFormat: 'request' | 'handler' | 'server' | 'client', literalsPrefix: string, parsedDocument: OpenAPIV3.Document | OpenAPIV3_1.Document, path: string): { declaration: ts.Expression } {
   let modelTypesFormat: 'request' | 'handler' | 'parse' | 'stringify'
   let refSuffix = ''
   switch (typesFormat) {
@@ -177,7 +177,7 @@ function makeResponseDeclarationForOperation (o: OpenAPIV3.OperationObject | Ope
             }
             const declaration = makeDeclarationForModel(response.headers[header].schema, response.headers[header].required === true, literalsPrefix, refSuffix, modelTypesFormat, 'to_string', parsedDocument, `${path}/responses/${statusCode}/headers/${header}/schema`, 'response')
 
-            return f.createPropertyAssignment(f.createStringLiteral(header), declaration)
+            return f.createPropertyAssignment(f.createStringLiteral(header.toLowerCase()), declaration)
           })
       }
 
@@ -230,7 +230,7 @@ function makeResponseDeclarationForOperation (o: OpenAPIV3.OperationObject | Ope
   }
 }
 
-export function makeDeclarationForOperation (o: OpenAPIV3.OperationObject | OpenAPIV3_1.OperationObject, method: string, route: string, typesFormat: 'request' | 'handler' | 'server' | 'client', literalsPrefix: string, parsedDocument: OpenAPIV3.Document | OpenAPIV3_1.Document, path: string): { declaration: ts.Expression } {
+export function makeDeclarationForOperation(o: OpenAPIV3.OperationObject | OpenAPIV3_1.OperationObject, method: string, route: string, typesFormat: 'request' | 'handler' | 'server' | 'client', literalsPrefix: string, parsedDocument: OpenAPIV3.Document | OpenAPIV3_1.Document, path: string): { declaration: ts.Expression } {
   const requestDeclaration = makeRequestDeclarationForOperation(o, typesFormat, literalsPrefix, parsedDocument, path)
   const responseDeclaration = makeResponseDeclarationForOperation(o, typesFormat, literalsPrefix, parsedDocument, path)
 
