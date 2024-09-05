@@ -21,7 +21,7 @@ const m = Module.declare('knex', 'input', {
 
 // then you can call `startAll` with config to start all modules, declared in your service
 await Module.startAll({
-  db: {
+  knex: {
     client: 'pg',
     connection: 'TODO'
   }
