@@ -1,6 +1,6 @@
 {
   "name": "@aliksend/openapi-routes-generator",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Routes generator for OpenAPI",
   "keywords": [
     "zod",

@@ -7,17 +7,21 @@ import { makeDeclarationForModel } from './schema'
 function makeRequestDeclarationForOperation(o: OpenAPIV3.OperationObject | OpenAPIV3_1.OperationObject, typesFormat: 'request' | 'handler' | 'server' | 'client', literalsPrefix: string, parsedDocument: OpenAPIV3.Document | OpenAPIV3_1.Document, path: string): { declaration: ts.Expression, security: undefined | ts.Expression } {
   let modelTypesFormat: 'request' | 'handler' | 'parse' | 'stringify'
   let refSuffix = ''
+  let convertType: 'from_string' | 'to_string' | false
   switch (typesFormat) {
     case 'client':
       modelTypesFormat = 'stringify'
       refSuffix = '__Req'
+      convertType = 'to_string'
       break
     case 'server':
       modelTypesFormat = 'parse'
       refSuffix = '__Req'
+      convertType = 'from_string'
       break
     default:
       modelTypesFormat = typesFormat
+      convertType = false
       break
   }
 
@@ -32,19 +36,23 @@ function makeRequestDeclarationForOperation(o: OpenAPIV3.OperationObject | OpenA
       if (param.schema == null) {
         throw new Error(`schema not defined for param ${param.name} at ${path}/parameters/${index}/schema`)
       }
+      const styleExplode = {
+        style: param.style,
+        explode: param.explode
+      }
       switch (param.in) {
         case 'path': {
-          const declaration = makeDeclarationForModel(param.schema, param.required === true, literalsPrefix, refSuffix, modelTypesFormat, 'from_string', parsedDocument, `${path}/parameters/${index}/schema`, 'request')
+          const { declaration } = makeDeclarationForModel(param.schema, param.required === true, literalsPrefix, refSuffix, modelTypesFormat, convertType === false ? false : `${convertType} path`, styleExplode, parsedDocument, `${path}/parameters/${index}/schema`, 'request')
           requestPathElements.push(f.createPropertyAssignment(f.createStringLiteral(param.name), declaration))
           break
         }
         case 'query': {
-          const declaration = makeDeclarationForModel(param.schema, param.required === true, literalsPrefix, refSuffix, modelTypesFormat, 'from_string', parsedDocument, `${path}/parameters/${index}/schema`, 'request')
+          const { declaration } = makeDeclarationForModel(param.schema, param.required === true, literalsPrefix, refSuffix, modelTypesFormat, convertType === false ? false : `${convertType} query`, styleExplode, parsedDocument, `${path}/parameters/${index}/schema`, 'request')
           requestQueryElements.push(f.createPropertyAssignment(f.createStringLiteral(param.name), declaration))
           break
         }
         case 'header': {
-          const declaration = makeDeclarationForModel(param.schema, param.required === true, literalsPrefix, refSuffix, modelTypesFormat, 'from_string', parsedDocument, `${path}/parameters/${index}/schema`, 'request')
+          const { declaration } = makeDeclarationForModel(param.schema, param.required === true, literalsPrefix, refSuffix, modelTypesFormat, convertType === false ? false : `${convertType} header`, styleExplode, parsedDocument, `${path}/parameters/${index}/schema`, 'request')
           requestHeadersElements.push(f.createPropertyAssignment(f.createStringLiteral(param.name.toLowerCase()), declaration))
           break
         }
@@ -82,7 +90,7 @@ function makeRequestDeclarationForOperation(o: OpenAPIV3.OperationObject | OpenA
         if (requestBodyContent.schema == null) {
           throw new Error(`requestBody schema must be defined for ${contentType} at ${path}/requestBody/${contentType}/schema`)
         }
-        const declaration = makeDeclarationForModel(requestBodyContent.schema, true, literalsPrefix, refSuffix, modelTypesFormat, false, parsedDocument, `${path}requestBody/${contentType}/schema`, 'request')
+        const { declaration } = makeDeclarationForModel(requestBodyContent.schema, true, literalsPrefix, refSuffix, modelTypesFormat, false, {}, parsedDocument, `${path}requestBody/${contentType}/schema`, 'request')
 
         const elements = [
           f.createPropertyAssignment('body', declaration),
@@ -147,17 +155,21 @@ function makeRequestDeclarationForOperation(o: OpenAPIV3.OperationObject | OpenA
 function makeResponseDeclarationForOperation(o: OpenAPIV3.OperationObject | OpenAPIV3_1.OperationObject, typesFormat: 'request' | 'handler' | 'server' | 'client', literalsPrefix: string, parsedDocument: OpenAPIV3.Document | OpenAPIV3_1.Document, path: string): { declaration: ts.Expression } {
   let modelTypesFormat: 'request' | 'handler' | 'parse' | 'stringify'
   let refSuffix = ''
+  let convertType: 'from_string' | 'to_string' | false
   switch (typesFormat) {
     case 'client':
       modelTypesFormat = 'parse'
       refSuffix = '__Res'
+      convertType = 'from_string'
       break
     case 'server':
       modelTypesFormat = 'stringify'
       refSuffix = '__Res'
+      convertType = 'to_string'
       break
     default:
       modelTypesFormat = typesFormat
+      convertType = false
       break
   }
 
@@ -175,7 +187,7 @@ function makeResponseDeclarationForOperation(o: OpenAPIV3.OperationObject | Open
             if (response.headers[header].schema == null) {
               throw new Error(`schema must be set for header ${header} in ${statusCode} response for status code ${statusCode} at ${path}/responses/${statusCode}/headers/${header}/schema`)
             }
-            const declaration = makeDeclarationForModel(response.headers[header].schema, response.headers[header].required === true, literalsPrefix, refSuffix, modelTypesFormat, 'to_string', parsedDocument, `${path}/responses/${statusCode}/headers/${header}/schema`, 'response')
+            const { declaration } = makeDeclarationForModel(response.headers[header].schema, response.headers[header].required === true, literalsPrefix, refSuffix, modelTypesFormat, convertType === false ? false : `${convertType} header`, {}, parsedDocument, `${path}/responses/${statusCode}/headers/${header}/schema`, 'response')
 
             return f.createPropertyAssignment(f.createStringLiteral(header.toLowerCase()), declaration)
           })
@@ -199,7 +211,7 @@ function makeResponseDeclarationForOperation(o: OpenAPIV3.OperationObject | Open
               headers.push(f.createPropertyAssignment(f.createStringLiteral('content-type'), f.createCallExpression(f.createPropertyAccessExpression(f.createIdentifier('z'), 'literal'), undefined, [f.createStringLiteral(responseType)])))
             }
 
-            const declaration = makeDeclarationForModel(response.content[responseType].schema, true, literalsPrefix, refSuffix, modelTypesFormat, false, parsedDocument, `${path}/responses/${statusCode}/content/${responseType}/schema`, 'response')
+            const { declaration } = makeDeclarationForModel(response.content[responseType].schema, true, literalsPrefix, refSuffix, modelTypesFormat, false, {}, parsedDocument, `${path}/responses/${statusCode}/content/${responseType}/schema`, 'response')
 
             return {
               payloadSchema: declaration,
