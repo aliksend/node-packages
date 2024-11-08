@@ -10,7 +10,7 @@ export function deferGenerator (cb: DeferredGenerator): void {
   deferredGenerators.push(cb)
 }
 
-export async function generate (rootDir: string): Promise<void> {
+export async function generate (rootDir: string, generateMainIndexTs: boolean): Promise<void> {
   // no typescript dependencies at runtime
   const ts = await import('typescript')
 
@@ -21,6 +21,8 @@ export async function generate (rootDir: string): Promise<void> {
     removeComments: false,
     omitTrailingSemicolon: true
   })
+
+  const mainIndexTsImports: Record<string, true> = {}
 
   const filesByIndexTs = scriptsList.reduce((res: Record<string, string[]>, filename) => {
     const indexTsName = path.join(path.dirname(filename), 'index.ts')
@@ -71,6 +73,26 @@ export async function generate (rootDir: string): Promise<void> {
             }
           }
         }
+
+        if (generateMainIndexTs) {
+          const dirname = path.dirname(indexTsFilename)
+          const fsItems = fs.readdirSync(dirname, { withFileTypes: true })
+          for (const fsItem of fsItems) {
+            if (fsItem.isFile()
+              && !fsItem.name.startsWith('_')
+              && fsItem.name !== 'index.ts'
+              && fsItem.name.endsWith('.ts')
+              && !fsItem.name.endsWith('.d.ts')
+              && !fsItem.name.endsWith('.test.ts')
+              && !fsItem.name.endsWith('.spec.ts')
+            ) {
+              let relativeIndexTsPathForImport = path.relative(rootDir, path.join(dirname, fsItem.name))
+              const extname = path.extname(relativeIndexTsPathForImport)
+              relativeIndexTsPathForImport = './' + relativeIndexTsPathForImport.slice(0, relativeIndexTsPathForImport.length - extname.length)
+              mainIndexTsImports[relativeIndexTsPathForImport] = true
+            }
+          }
+        }
       } catch (err) {
         console.error(`Unable to process file ${filename}`, err)
         exitCode = 1
@@ -100,6 +122,15 @@ export async function generate (rootDir: string): Promise<void> {
 
   if (exitCode != null) {
     process.exit(exitCode)
+  }
+
+  if (generateMainIndexTs) {
+    const mainIndexTsLines: string[] = ['// @generated', '']
+    mainIndexTsLines.push("import { start } from '@modular-service/runtime'", '')
+    mainIndexTsLines.push(...Object.keys(mainIndexTsImports).map(v => `import ${JSON.stringify(v)}`))
+    mainIndexTsLines.push('', 'start()', '')
+
+    fs.writeFileSync(path.join(rootDir, 'index.ts'), mainIndexTsLines.join('\n'))
   }
 }
 
