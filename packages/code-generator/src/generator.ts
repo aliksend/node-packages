@@ -46,9 +46,10 @@ export async function generate (rootDir: string, generateMainIndexTs: boolean): 
     const declarations: ts.Node[] = []
 
     for (const filename of filesByIndexTs[indexTsFilename]) {
+      const fullFileName = path.join(process.cwd(), './' + filename)
       try {
         try {
-          await import(filename)
+          await import(fullFileName)
         } catch (err) {
           const e = new Error(`unable to import ${filename}`)
           ;(e as any).error = err
@@ -126,9 +127,8 @@ export async function generate (rootDir: string, generateMainIndexTs: boolean): 
 
   if (generateMainIndexTs) {
     const mainIndexTsLines: string[] = ['// @generated', '']
-    mainIndexTsLines.push("import { start } from '@modular-service/runtime'", '')
     mainIndexTsLines.push(...Object.keys(mainIndexTsImports).map(v => `import ${JSON.stringify(v)}`))
-    mainIndexTsLines.push('', 'start()', '')
+    // TODO start somehow?
 
     fs.writeFileSync(path.join(rootDir, 'index.ts'), mainIndexTsLines.join('\n'))
   }

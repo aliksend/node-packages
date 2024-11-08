@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { generate } from './generator'
+import { generate } from './generator.js'
 import { defineCommand, runMain } from 'citty'
 import path from 'node:path'
 import fs from 'node:fs'
