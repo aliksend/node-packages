@@ -780,7 +780,7 @@ function makeDeclarationForEnum(enumDeclaration: NonNullable<OpenAPIV3.BaseSchem
   }
 
   if (enumDeclaration.length === 1) {
-    return createLiteral(enumDeclaration[0], `${path}/0`)
+    return f.createCallExpression(f.createPropertyAccessExpression(f.createIdentifier('z'), 'literal'), undefined, [createLiteral(enumDeclaration[0], `${path}/0`)])
   }
 
   return f.createCallExpression(f.createPropertyAccessExpression(f.createIdentifier('z'), 'union'), undefined, [
