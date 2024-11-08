@@ -1,11 +1,26 @@
 #!/usr/bin/env node
 
 import { generate } from './generator'
+import { defineCommand, runMain } from 'citty'
+import path from 'node:path'
+import fs from 'node:fs'
 
-const generateMainIndexTs = process.argv.includes('--main')
+const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf-8'))
 
-generate(process.cwd(), generateMainIndexTs)
-.catch((err) => {
-  console.error(err)
-  process.exit(1)
-})
+void runMain(defineCommand({
+  meta: packageJson,
+  args: {
+    main: {
+      type: 'boolean',
+      description: 'Generate main index.ts file',
+      default: false
+    },
+    wd: {
+      type: 'positional',
+      description: 'Directory to process',
+      default: process.cwd()
+    }
+  }, async run({ args }) {
+    await generate(args.wd, args.main)
+  }
+}))
