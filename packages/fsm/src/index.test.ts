@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'bun:test'
+import { describe, it } from 'node:test'
 import { z } from 'zod'
-import { StateMachine } from '.';
-
+import { StateMachine } from './index.js';
+import { expect } from 'expect';
 
 // Tests for the StateMachine
 describe('FSM', () => {
