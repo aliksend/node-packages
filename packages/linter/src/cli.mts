@@ -18,7 +18,7 @@ void runMain(defineCommand({
     },
   },
   run ({ args }) {
-    let cmd = `eslint ./src --config ${path.join(dirname, '../.eslintrc.yml')} --ext .ts,.mts`
+    let cmd = `eslint ./src --config ${path.join(dirname, '../eslint.config.js')}`
     if (args.fix) {
       cmd += ' --fix'
     }
