@@ -12,17 +12,12 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.
 void runMain(defineCommand({
   meta: packageJson,
   args: {
-    main: {
-      type: 'boolean',
-      description: 'Generate main index.ts file',
-      default: false
-    },
     wd: {
       type: 'positional',
       description: 'Directory to process',
       default: process.cwd()
     }
   }, async run({ args }) {
-    await generate(args.wd, args.main)
+    await generate(args.wd)
   }
 }))

@@ -2,7 +2,10 @@ import fs from 'fs'
 import path from 'path'
 import type ts from 'typescript'
 
-type DeferredGenerator = () => Promise<void | { imports?: Map<string, ts.ImportDeclaration>, declarations?: ts.Node[] }>
+type DeferredGenerator = () => Promise<void | {
+  imports?: Map<string, ts.ImportDeclaration>,
+  declarations?: ts.Node[],
+}>
 
 const deferredGenerators: DeferredGenerator[] = []
 
@@ -10,7 +13,7 @@ export function deferGenerator (cb: DeferredGenerator): void {
   deferredGenerators.push(cb)
 }
 
-export async function generate (rootDir: string, generateMainIndexTs: boolean): Promise<void> {
+export async function generate (rootDir: string): Promise<void> {
   // no typescript dependencies at runtime
   const ts = await import('typescript')
 
@@ -21,8 +24,6 @@ export async function generate (rootDir: string, generateMainIndexTs: boolean): 
     removeComments: false,
     omitTrailingSemicolon: true
   })
-
-  const mainIndexTsImports: Record<string, true> = {}
 
   const filesByIndexTs = scriptsList.reduce((res: Record<string, string[]>, filename) => {
     const indexTsName = path.join(path.dirname(filename), 'index.ts')
@@ -74,26 +75,6 @@ export async function generate (rootDir: string, generateMainIndexTs: boolean): 
             }
           }
         }
-
-        if (generateMainIndexTs) {
-          const dirname = path.dirname(indexTsFilename)
-          const fsItems = fs.readdirSync(dirname, { withFileTypes: true })
-          for (const fsItem of fsItems) {
-            if (fsItem.isFile()
-              && !fsItem.name.startsWith('_')
-              && fsItem.name !== 'index.ts'
-              && fsItem.name.endsWith('.ts')
-              && !fsItem.name.endsWith('.d.ts')
-              && !fsItem.name.endsWith('.test.ts')
-              && !fsItem.name.endsWith('.spec.ts')
-            ) {
-              let relativeIndexTsPathForImport = path.relative(rootDir, path.join(dirname, fsItem.name))
-              const extname = path.extname(relativeIndexTsPathForImport)
-              relativeIndexTsPathForImport = './' + relativeIndexTsPathForImport.slice(0, relativeIndexTsPathForImport.length - extname.length)
-              mainIndexTsImports[relativeIndexTsPathForImport] = true
-            }
-          }
-        }
       } catch (err) {
         console.error(`Unable to process file ${filename}`, err)
         exitCode = 1
@@ -124,17 +105,9 @@ export async function generate (rootDir: string, generateMainIndexTs: boolean): 
   if (exitCode != null) {
     process.exit(exitCode)
   }
-
-  if (generateMainIndexTs) {
-    const mainIndexTsLines: string[] = ['// @generated', '']
-    mainIndexTsLines.push(...Object.keys(mainIndexTsImports).map(v => `import ${JSON.stringify(v)}`))
-    // TODO start somehow?
-
-    fs.writeFileSync(path.join(rootDir, 'index.ts'), mainIndexTsLines.join('\n'))
-  }
 }
 
-function makeScriptsList (rootDir: string): string[] {
+export function makeScriptsList (rootDir: string): string[] {
   const fsItems = fs.readdirSync(rootDir, { withFileTypes: true })
   const res: string[] = []
   for (const fsItem of fsItems) {
