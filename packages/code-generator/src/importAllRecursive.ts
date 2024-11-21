@@ -28,7 +28,7 @@ export function importAllRecursive(rootDir: string): Map<string, ts.ImportDeclar
     }
   }
 
-  return Object.keys(imports).reduce((map: Map<string, ts.ImportDeclaration>, filename) => {
+  return Object.keys(imports).sort().reduce((map: Map<string, ts.ImportDeclaration>, filename) => {
     map.set(filename, f.createImportDeclaration(
       undefined,
       undefined,
