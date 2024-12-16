@@ -1,5 +1,5 @@
 {
-  "name": "ticker",
+  "name": "@aliksend/ticker",
   "version": "1.0.0",
   "description": "This module allows to manipulate tickers",
   "main": "index.js",
