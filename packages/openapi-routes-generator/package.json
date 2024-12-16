@@ -18,17 +18,10 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "rm -rf dist && tsc",
-    "lint": "npx @aliksend/linter --fix",
     "prepublishOnly": "npm run build",
-    "example:simple": "ts-node src/cli.ts example/simple.openapi.yml example/simpleRoutes.generated.ts",
-    "example:transformations": "npm run example:transformations:request && npm run example:transformations:handler && npm run example:transformations:server && npm run example:transformations:client",
-    "example:transformations:request": "ts-node src/cli.ts --types_format request example/transformations.openapi.yml example/requestRoutes.generated.ts",
-    "example:transformations:handler": "ts-node src/cli.ts --types_format handler example/transformations.openapi.yml example/handlerRoutes.generated.ts",
-    "example:transformations:server": "ts-node src/cli.ts --types_format server example/transformations.openapi.yml example/serverRoutes.generated.ts",
-    "example:transformations:client": "ts-node src/cli.ts --types_format client example/transformations.openapi.yml example/clientRoutes.generated.ts",
-    "start": "npm run example:simple && npm run example:transformations",
-    "test": "node --require ts-node/register --test ./src/*.test.ts"
+    "test": "node --require ts-node/register --test ./src/*.test.ts",
+    "build": "rm -rf dist && tsc",
+    "lint": "npx @aliksend/linter --fix"
   },
   "dependencies": {
     "@apidevtools/swagger-parser": "^10.1.0",
