@@ -1,0 +1,48 @@
+{
+  "name": "@aliksend/cache",
+  "version": "1.0.4",
+  "description": "This module provides cache primitive with some implementations",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "prepublishOnly": "npm run build",
+    "test": "node --require ts-node/register --test ./src/*.test.ts",
+    "build": "rm -rf dist && tsc",
+    "lint": "npx @aliksend/linter --fix"
+  },
+  "keywords": [
+    "cache"
+  ],
+  "exports": {
+    ".": {
+      "default": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./format/*": {
+      "default": "./dist/format/*.js",
+      "types": "./dist/format/*.d.ts"
+    },
+    "./storage/*": {
+      "default": "./dist/storage/*.js",
+      "types": "./dist/storage/*.d.ts"
+    }
+  },
+  "author": "Alik Send",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.8.4",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "dayjs": "^1.11.13"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aliksend/node-packages.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module"
+}
