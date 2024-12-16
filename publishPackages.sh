@@ -26,7 +26,7 @@ do
       BIN='"./dist/cli.js"'
     fi
 
-    jq --argjson bin $BIN '. +
+    jq --argjson bin $BIN --arg dirname $PACKAGE_DIRNAME '. +
       {
         license: "MIT",
         author: "Alik Send",
@@ -34,7 +34,8 @@ do
         types: "dist/index.d.ts",
         repository: {
           type: "git",
-          url: "https://github.com/aliksend/node-packages.git"
+          url: "git+https://github.com/aliksend/node-packages.git",
+          directory: $dirname
         },
         publishConfig: {
           access: "public"
@@ -76,7 +77,7 @@ do
 
   echo "Current version not found in registry. Publishing"
   cd "$PACKAGE_DIRNAME"
-  # npx sort-package-json
+  npx sort-package-json
   npm ci
   npm publish
 done

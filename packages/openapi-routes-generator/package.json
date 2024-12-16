@@ -10,18 +10,19 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/aliksend/node-packages.git"
+    "url": "git+https://github.com/aliksend/node-packages.git",
+    "directory": "./packages/openapi-routes-generator"
   },
   "license": "MIT",
   "author": "Alik Send",
-  "bin": "./dist/cli.js",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": "./dist/cli.js",
   "scripts": {
-    "prepublishOnly": "npm run build",
-    "test": "node --require ts-node/register --test ./src/*.test.ts",
     "build": "rm -rf dist && tsc",
-    "lint": "npx @aliksend/linter --fix"
+    "lint": "npx @aliksend/linter --fix",
+    "prepublishOnly": "npm run build",
+    "test": "node --require ts-node/register --test ./src/*.test.ts"
   },
   "dependencies": {
     "@apidevtools/swagger-parser": "^10.1.0",

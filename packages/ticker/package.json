@@ -2,25 +2,26 @@
   "name": "@aliksend/ticker",
   "version": "1.0.0",
   "description": "This module allows to manipulate tickers",
-  "main": "dist/index.js",
-  "scripts": {
-    "prepublishOnly": "npm run build",
-    "test": "node --require ts-node/register --test ./src/*.test.ts",
-    "build": "rm -rf dist && tsc",
-    "lint": "npx @aliksend/linter --fix"
-  },
   "keywords": [],
-  "author": "Alik Send",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aliksend/node-packages.git",
+    "directory": "./packages/ticker"
+  },
   "license": "MIT",
+  "author": "Alik Send",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "rm -rf dist && tsc",
+    "lint": "npx @aliksend/linter --fix",
+    "prepublishOnly": "npm run build",
+    "test": "node --require ts-node/register --test ./src/*.test.ts"
+  },
   "devDependencies": {
     "@types/node": "^22.8.4",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"
-  },
-  "types": "dist/index.d.ts",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/aliksend/node-packages.git"
   },
   "publishConfig": {
     "access": "public"
