@@ -267,6 +267,18 @@ export class State<Info extends object | void> extends ParentState<Info> {
   }
 
   /**
+   * Может ли этот State обработать этот Event
+   */
+  canHandleEvent(eventName: string): boolean {
+    if (this.transitions.type !== 'EVENTS') {
+      return false
+    }
+
+    const hasEventHandler = this.transitions.events.some(e => e.name === eventName)
+    return hasEventHandler
+  }
+
+  /**
    * Обработать какой-то Event и вернуть новый State
    * Актуально для типа EVENTS, для других типов будет возвращен этот же State
    */
