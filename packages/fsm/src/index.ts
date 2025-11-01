@@ -343,6 +343,18 @@ export class State<Info extends object | void> extends ParentState<Info> {
   }
 
   /**
+   * Имена event-ов, которые могут быть обработаны этим state
+   * Актуально для типа EVENTS, для других типов будет возвращен пустой массив
+   */
+  eventsThatCanBeHandled(): Array<string> {
+    if (this.transitions.type !== "EVENTS") {
+      return [];
+    }
+
+    return this.transitions.events.map((e) => e.name);
+  }
+
+  /**
    * Обработать какой-то Event и вернуть новый State
    * Актуально для типа EVENTS, для других типов будет возвращен этот же State
    */
