@@ -1,6 +1,6 @@
 {
   "name": "@aliksend/fsm",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Finite state machine",
   "keywords": [
     "fsm"
@@ -21,7 +21,7 @@
     "test": "node --require ts-node/register --test ./src/*.test.ts"
   },
   "dependencies": {
-    "zod": "3.21"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "expect": "^29.7.0",

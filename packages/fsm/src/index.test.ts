@@ -26,7 +26,7 @@ describe('FSM', () => {
     const anotherPromiseState = machine.state('another_promise', {
       schema: z.object({
         abc: z.number(),
-        err: z.any()
+        err: z.any().optional()
       }),
     }).initWithPromise(async (data) => {
       if (data.abc >= 110) {

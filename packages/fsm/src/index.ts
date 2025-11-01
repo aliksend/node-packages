@@ -16,7 +16,7 @@ export class StateMachine<Info extends object | void = void> {
    * Создать StateDeclaration, при помощи которого затем создаётся StateBuilder
    * Имя должно быть уникальным в рамках StateMachine, кроме имён parent-ов
    */
-  state<Schema extends z.ZodTypeAny>(name: string, def: StateDefinition<Schema, Info>): StateDeclaration<void, Schema, Info> {
+  state<Schema extends z.ZodType>(name: string, def: StateDefinition<Schema, Info>): StateDeclaration<void, Schema, Info> {
     return new StateDeclaration(name, def, (sb) => {
       if (this.stateBuilders[sb.name] != null) {
         throw new Error(`state ${sb.name} is already declared`)
@@ -30,7 +30,7 @@ export class StateMachine<Info extends object | void = void> {
    * Создать EventDefinition
    * Имя должно быть уникальным в рамках StateMachine, кроме системных имён, которые начинаются с "$"
    */
-  event<ArgSchema extends z.ZodTypeAny>(name: string, argSchema: ArgSchema): EventDefinition<ArgSchema, Info> {
+  event<ArgSchema extends z.ZodType>(name: string, argSchema: ArgSchema): EventDefinition<ArgSchema, Info> {
     if (this.events[name] != null) {
       throw new Error(`event ${name} is already declared`)
     }
@@ -57,7 +57,7 @@ export class StateMachine<Info extends object | void = void> {
 /**
  * Объявление state-а - схема его данных и структура, позволяющая создать его info
  */
-type StateDefinition<Schema extends z.ZodTypeAny, Info extends object | void> = {
+type StateDefinition<Schema extends z.ZodType, Info extends object | void> = {
   schema: Schema
 } & (
   Info extends void
@@ -72,7 +72,7 @@ type StateDefinition<Schema extends z.ZodTypeAny, Info extends object | void> = 
  * Это позволяет создать info формата `{ a: string }` при помощи объекта `{ a: 'foo' }`,
  * так и при помощи `{ a: (data) => data.foo }`, где `data` - данные State-а для которого используется этот InfoDefinition
  */
-type InfoDefinition<Schema extends z.ZodTypeAny, Info extends object | void> = Info extends void ? void : {
+type InfoDefinition<Schema extends z.ZodType, Info extends object | void> = Info extends void ? void : {
   [k in keyof Info]: Info[k] | ((data: z.infer<Schema>) => Info[k])
 }
 
@@ -81,8 +81,8 @@ type InfoDefinition<Schema extends z.ZodTypeAny, Info extends object | void> = I
  * Хранит имя, формат схемы данных и Info
  * Имеет callback, который будет вызван когда StateBuilder будет создан
  */
-class StateDeclaration<ParentSchema extends z.ZodTypeAny | void, Schema extends z.ZodTypeAny, Info extends object | void> {
-  constructor(private readonly name: string, private readonly def: StateDefinition<MakeParentSchema<ParentSchema, Schema>, Info>, private readonly newStateBuilderCallback: ((b: StateBuilder<any, any, Info>) => void), private readonly parentStateBuilder: ParentSchema extends z.ZodTypeAny ? ParentStateBuilder<ParentSchema, Info> : undefined) { }
+class StateDeclaration<ParentSchema extends z.ZodType | void, Schema extends z.ZodType, Info extends object | void> {
+  constructor(private readonly name: string, private readonly def: StateDefinition<MakeParentSchema<ParentSchema, Schema>, Info>, private readonly newStateBuilderCallback: ((b: StateBuilder<any, any, Info>) => void), private readonly parentStateBuilder: ParentSchema extends z.ZodType ? ParentStateBuilder<ParentSchema, Info> : undefined) { }
 
   /**
    * Создать StateBuilder, позволяющий создать State, который будет реагировать на какие-то события
@@ -125,8 +125,8 @@ class StateDeclaration<ParentSchema extends z.ZodTypeAny | void, Schema extends 
  * Тип, позволяющий понять какая схема данных будет у State-а
  * Принимает ParentSchema - схема данных родителя (или void если родителя нет), Schema - схема данных State-а
  */
-type MakeParentSchema<ParentSchema extends z.ZodTypeAny | void, Schema extends z.ZodTypeAny> =
-  ParentSchema extends z.ZodTypeAny
+type MakeParentSchema<ParentSchema extends z.ZodType | void, Schema extends z.ZodType> =
+  ParentSchema extends z.ZodType
   ? z.ZodObject<{
     $value: Schema,
     $parent: ParentSchema
@@ -136,13 +136,13 @@ type MakeParentSchema<ParentSchema extends z.ZodTypeAny | void, Schema extends z
 /**
  * StateBuilder, позволяющий создать subState-ы (StateBuilder-ы потомков)
  */
-class ParentStateBuilder<ParentSchema extends z.ZodTypeAny, Info extends object | void> {
+class ParentStateBuilder<ParentSchema extends z.ZodType, Info extends object | void> {
   constructor(private readonly name: string, private readonly def: StateDefinition<ParentSchema, Info>, private readonly newStateBuilderCallback: ((b: StateBuilder<any, any, Info>) => void), private readonly parentStateBuilder: ParentStateBuilder<ParentSchema, Info> | undefined) {}
 
   /**
    * Создать состояние-потомок, наследующее схему данных (в параметре $parent) и info (может быть переопределено)
    */
-  subState<Schema extends z.ZodTypeAny>(name: string, def: {
+  subState<Schema extends z.ZodType>(name: string, def: {
     schema: Schema
     info?: Partial<InfoDefinition<MakeParentSchema<ParentSchema, Schema>, Info>>
   }): StateDeclaration<ParentSchema, Schema, Info> {
@@ -163,7 +163,7 @@ class ParentStateBuilder<ParentSchema extends z.ZodTypeAny, Info extends object 
     const infoDefinition: InfoDefinition<ParentSchema, Info> = 'info' in this.def ? this.def.info as any : undefined
     let parentState: ParentState<Info> | undefined
     if (this.parentStateBuilder != null) {
-      parentState = this.parentStateBuilder.build(data.$parent)
+      parentState = this.parentStateBuilder.build((data as any).$parent)
     }
     return new ParentState(parsed, infoDefinition, parentState)
   }
@@ -205,7 +205,7 @@ class ParentState<Info extends object | void> {
 /**
  * Возможные алгоритмы перехода State-а в другие State-ы
  */
-type Transitions<Schema extends z.ZodTypeAny, Info extends object | void> = {
+type Transitions<Schema extends z.ZodType, Info extends object | void> = {
   type: 'EVENTS',
   events: Array<EventDefinitionWithHandler<any, Schema, Info>>
 } | {
@@ -219,15 +219,15 @@ type Transitions<Schema extends z.ZodTypeAny, Info extends object | void> = {
 /**
  * StateBuilder, позволяющий построить какой-то State
  */
-class StateBuilder<ParentSchema extends z.ZodTypeAny | void, Schema extends z.ZodTypeAny, Info extends object | void> {
-  constructor(readonly name: string, private readonly def: StateDefinition<MakeParentSchema<ParentSchema, Schema>, Info>, private readonly transitions: Transitions<MakeParentSchema<ParentSchema, Schema>, Info>, private readonly parentStateBuilder: ParentSchema extends z.ZodTypeAny ? ParentStateBuilder<ParentSchema, Info> : undefined) {}
+class StateBuilder<ParentSchema extends z.ZodType | void, Schema extends z.ZodType, Info extends object | void> {
+  constructor(readonly name: string, private readonly def: StateDefinition<MakeParentSchema<ParentSchema, Schema>, Info>, private readonly transitions: Transitions<MakeParentSchema<ParentSchema, Schema>, Info>, private readonly parentStateBuilder: ParentSchema extends z.ZodType ? ParentStateBuilder<ParentSchema, Info> : undefined) {}
 
   build(data: z.input<MakeParentSchema<ParentSchema, Schema>>, skipInit: boolean = false): State<Info> {
     const parsed = this.def.schema.parse(data)
     const infoDefinition: InfoDefinition<MakeParentSchema<ParentSchema, Schema>, Info> = 'info' in this.def ? this.def.info as any : undefined
     let parent: ParentState<Info> | undefined
     if (this.parentStateBuilder != null) {
-      parent = this.parentStateBuilder.build(parsed.$parent)
+      parent = this.parentStateBuilder.build((parsed as any).$parent)
     }
     const state = new State(this.name, parsed, this.transitions, infoDefinition, parent)
     if (!state.hasInitEvent || skipInit) {
@@ -361,13 +361,13 @@ export class State<Info extends object | void> extends ParentState<Info> {
  * Объявление какого-то события
  * Позволяет сохранить имя события и формат его аргументов
  */
-export class EventDefinition<ArgSchema extends z.ZodTypeAny, Info extends object | void> {
+export class EventDefinition<ArgSchema extends z.ZodType, Info extends object | void> {
   constructor(private readonly name: string, private readonly argSchema: ArgSchema) { }
 
   /**
    * Создать обработчик для этого события
    */
-  handler<Schema extends z.ZodTypeAny>(cb: (data: z.output<Schema>, arg: z.output<ArgSchema>) => State<Info> | void): EventDefinitionWithHandler<ArgSchema, Schema,  Info> {
+  handler<Schema extends z.ZodType>(cb: (data: z.output<Schema>, arg: z.output<ArgSchema>) => State<Info> | void): EventDefinitionWithHandler<ArgSchema, Schema,  Info> {
     return new EventDefinitionWithHandler(this.name, this.argSchema, cb)
   }
 
@@ -386,7 +386,7 @@ export class EventDefinition<ArgSchema extends z.ZodTypeAny, Info extends object
  * Объявление события с обработчиком
  * Позволяет сохранить имя события, формат его аргументов и обработчик
  */
-export class EventDefinitionWithHandler<ArgSchema extends z.ZodTypeAny, Schema extends z.ZodTypeAny, Info extends object | void> {
+export class EventDefinitionWithHandler<ArgSchema extends z.ZodType, Schema extends z.ZodType, Info extends object | void> {
   constructor(readonly name: string, private readonly argSchema: ArgSchema, private readonly cb: (data: z.output<Schema>, arg: z.output<ArgSchema>) => State<Info> | void) { }
 
   /**
@@ -400,7 +400,7 @@ export class EventDefinitionWithHandler<ArgSchema extends z.ZodTypeAny, Schema e
   /**
    * Вызвать обработчик события с данными текущего State-а и какими-то аргументами
    */
-  call(data: unknown, arg: z.input<ArgSchema>): State<Info> | undefined {
+  call(data: any, arg: z.input<ArgSchema>): State<Info> | undefined {
     const parsed = this.argSchema.parse(arg)
     const res = this.cb(data, parsed)
     return res ?? undefined
@@ -410,7 +410,7 @@ export class EventDefinitionWithHandler<ArgSchema extends z.ZodTypeAny, Schema e
 /**
  * Объявление какого-то события и данные для него
  */
-export interface Event<ArgSchema extends z.ZodTypeAny> {
+export interface Event<ArgSchema extends z.ZodType> {
   name: string
   arg: z.infer<ArgSchema>
 }
