@@ -1,8 +1,8 @@
-import { Cached } from '.';
-import { Format } from './format';
-import { json } from './format/json';
-import { CacheItem } from './item';
-import { CacheStorage } from './storage';
+import { Cached } from "./index.js";
+import { Format } from "./format.js";
+import { json } from "./format/json.js";
+import { CacheItem } from "./item.js";
+import { CacheStorage } from "./storage.js";
 
 /** Cache options */
 export interface Opts {
@@ -40,15 +40,15 @@ interface Params {
 export class Cache {
   #storage: CacheStorage;
   #opts: Opts;
-  #items: Record<string, CacheItem<any, any>>
+  #items: Record<string, CacheItem<any, any>>;
 
-  constructor (opts: Params) {
+  constructor(opts: Params) {
     this.#storage = opts.storage;
     this.#opts = {
       requestValueAfterCreating: opts.requestValueAfterCreating ?? false,
       expiresInMs: opts.expiresInMs ?? null,
     };
-    this.#items = {}
+    this.#items = {};
   }
 
   /**
@@ -57,7 +57,7 @@ export class Cache {
    * @param cb function to retrieve value for cached item
    * @param opts change some params for this specific cached item
    */
-  cached<T>(key: string, cb: () => PromiseLike<T>, opts?: Partial<Opts>): Cached<T>
+  cached<T>(key: string, cb: () => PromiseLike<T>, opts?: Partial<Opts>): Cached<T>;
 
   /**
    * Declare cache item
@@ -66,33 +66,33 @@ export class Cache {
    * @param format formatter to serialize and deserialize value to store and load
    * @param opts change some params for this specific cached item
    */
-  cached<I, O>(key: string, cb: () => PromiseLike<I>, format: Format<I, O>, opts?: Partial<Opts>): Cached<O>
+  cached<I, O>(key: string, cb: () => PromiseLike<I>, format: Format<I, O>, opts?: Partial<Opts>): Cached<O>;
 
   cached(key: string, cb: () => PromiseLike<unknown>, optsOrFormat?: any, optsOrNothing?: any): Cached<any> {
-    let format: undefined | Format<unknown, unknown>
-    let opts: undefined | Partial<Opts>
+    let format: undefined | Format<unknown, unknown>;
+    let opts: undefined | Partial<Opts>;
     if (optsOrFormat != null) {
       if (optsOrNothing != null) {
-        format = optsOrFormat
-        opts = optsOrNothing
-      } else if ('serialize' in optsOrFormat){
-        format = optsOrFormat
+        format = optsOrFormat;
+        opts = optsOrNothing;
+      } else if ("serialize" in optsOrFormat) {
+        format = optsOrFormat;
       } else {
-        opts = optsOrFormat
+        opts = optsOrFormat;
       }
     }
 
     if (format == null) {
-      format = json()
+      format = json();
     }
 
     if (this.#items[key] == null) {
-      this.#items[key] = new CacheItem(key, cb, this.#storage, format, { ...this.#opts, ...opts })
+      this.#items[key] = new CacheItem(key, cb, this.#storage, format, { ...this.#opts, ...opts });
     }
 
     return async (reqOpts) => {
       return await this.#items[key].get(reqOpts);
-    }
+    };
   }
 
   /**
@@ -102,7 +102,7 @@ export class Cache {
    */
   async invalidate(key: string, reload: boolean = true): Promise<void> {
     if (this.#items[key] == null) {
-      return
+      return;
     }
 
     await this.#items[key].invalidate(reload);

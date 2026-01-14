@@ -1,6 +1,6 @@
 {
   "name": "@aliksend/cache",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "This module provides cache primitive with some implementations",
   "keywords": [
     "cache"

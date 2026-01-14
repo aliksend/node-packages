@@ -1,22 +1,22 @@
-import fs from 'fs'
-import path from 'path'
-import { CacheStorage } from '../storage'
+import fs from "fs";
+import path from "path";
+import { CacheStorage } from "../storage.js";
 
 export class DiskStorage implements CacheStorage {
-  #dir: string
+  #dir: string;
 
   constructor(dir: string) {
-    fs.mkdirSync(dir, { recursive: true })
+    fs.mkdirSync(dir, { recursive: true });
 
-    this.#dir = dir
+    this.#dir = dir;
   }
 
   #fullFileName(key: string) {
-    return path.join(this.#dir, `${key}`)
+    return path.join(this.#dir, `${key}`);
   }
 
   async has(key: string): Promise<boolean> {
-    return fs.existsSync(this.#fullFileName(key))
+    return fs.existsSync(this.#fullFileName(key));
   }
 
   async get(key: string): Promise<Buffer> {
@@ -24,10 +24,10 @@ export class DiskStorage implements CacheStorage {
   }
 
   async set(key: string, value: Buffer): Promise<void> {
-    await fs.promises.writeFile(this.#fullFileName(key), value)
+    await fs.promises.writeFile(this.#fullFileName(key), value);
   }
 
   async unset(key: string): Promise<void> {
-    await fs.promises.rm(this.#fullFileName(key))
+    await fs.promises.rm(this.#fullFileName(key));
   }
 }
