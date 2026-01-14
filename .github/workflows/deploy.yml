@@ -22,3 +22,5 @@ jobs:
 
       - name: Publish packages
         run: bash publishPackages.sh
+        env:
+          NPM_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
